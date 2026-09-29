@@ -84,3 +84,40 @@ async def test_authentication_error_handling():
     finally:
         # Restore original method
         BedrockInferenceAdapter.__bases__[0].openai_chat_completion = original_method
+
+
+async def test_list_provider_model_ids_sigv4(monkeypatch):
+    """Test dynamic model discovery includes both foundation models and inference profiles."""
+    monkeypatch.delenv("AWS_BEDROCK_BEARER_TOKEN", raising=False)
+    monkeypatch.delenv("AWS_BEARER_TOKEN_BEDROCK", raising=False)
+    monkeypatch.delenv("LLAMA_STACK_BEDROCK_BEARER_TOKEN", raising=False)
+    monkeypatch.delenv("OGX_BEDROCK_BEARER_TOKEN", raising=False)
+    config = BedrockConfig(aws_bedrock_bearer_token="", region_name="us-east-2")
+    adapter = BedrockInferenceAdapter(config=config)
+
+    mock_client = MagicMock()
+    mock_client.list_foundation_models.return_value = {
+        "modelSummaries": [
+            {"modelId": "meta.llama3-1-8b-instruct-v1:0", "modelLifecycleStatus": "ACTIVE"},
+            {"modelId": "deprecated-model", "modelLifecycleStatus": "LEGACY"},
+        ]
+    }
+    mock_client.list_inference_profiles.return_value = {
+        "inferenceProfileSummaries": [
+            {"inferenceProfileId": "us.meta.llama3-1-8b-instruct-v1:0", "status": "ACTIVE"},
+            {"inferenceProfileId": "us.meta.llama3-3-70b-instruct-v1:0", "status": "ACTIVE"},
+            {"inferenceProfileId": "inactive-profile", "status": "INACTIVE"},
+        ]
+    }
+    adapter._bedrock_client = mock_client
+
+    models = await adapter.list_provider_model_ids()
+
+    assert "meta.llama3-1-8b-instruct-v1:0" in models
+    assert "us.meta.llama3-1-8b-instruct-v1:0" in models
+    assert "us.meta.llama3-3-70b-instruct-v1:0" in models
+    assert "deprecated-model" not in models
+    assert "inactive-profile" not in models
+    mock_client.list_foundation_models.assert_called_once_with(byInferenceType="ON_DEMAND")
+    mock_client.list_inference_profiles.assert_called_once_with(typeEquals="SYSTEM_DEFINED")
+
