@@ -231,7 +231,7 @@ class BedrockInferenceAdapter(OpenAIMixin):
             return [m.id async for m in client.models.list()]
         except Exception:
             logger.warning("Failed to list models from Bedrock mantle endpoint", exc_info=True)
-            return []
+            raise
 
     async def check_model_availability(self, model: str) -> bool:
         return True
