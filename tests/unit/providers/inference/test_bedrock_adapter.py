@@ -120,4 +120,3 @@ async def test_list_provider_model_ids_sigv4(monkeypatch):
     assert "inactive-profile" not in models
     mock_client.list_foundation_models.assert_called_once_with(byInferenceType="ON_DEMAND")
     mock_client.list_inference_profiles.assert_called_once_with(typeEquals="SYSTEM_DEFINED")
-

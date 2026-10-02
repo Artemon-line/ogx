@@ -197,27 +197,31 @@ class BedrockInferenceAdapter(OpenAIMixin):
                     self._bedrock_client.list_foundation_models,
                     byInferenceType="ON_DEMAND",
                 )
-                model_ids.extend([
-                    m["modelId"]
-                    for m in response.get("modelSummaries", [])
-                    if m.get("modelLifecycleStatus") == "ACTIVE"
-                ])
+                model_ids.extend(
+                    [
+                        m["modelId"]
+                        for m in response.get("modelSummaries", [])
+                        if m.get("modelLifecycleStatus") == "ACTIVE"
+                    ]
+                )
             except Exception:
                 logger.warning("Failed to list Bedrock foundation models", exc_info=True)
-
+                raise
             try:
                 ip_response = await asyncio.to_thread(
                     self._bedrock_client.list_inference_profiles,
                     typeEquals="SYSTEM_DEFINED",
                 )
-                model_ids.extend([
-                    ip["inferenceProfileId"]
-                    for ip in ip_response.get("inferenceProfileSummaries", [])
-                    if ip.get("status") == "ACTIVE"
-                ])
+                model_ids.extend(
+                    [
+                        ip["inferenceProfileId"]
+                        for ip in ip_response.get("inferenceProfileSummaries", [])
+                        if ip.get("status") == "ACTIVE"
+                    ]
+                )
             except Exception:
                 logger.warning("Failed to list Bedrock inference profiles", exc_info=True)
-
+                raise
             return model_ids
         # bearer token path: bedrock-runtime doesn't expose /v1/models,
         # but the mantle endpoint does — query it directly
